@@ -284,8 +284,6 @@ nftset=/grok.com/4#inet#fw4#vpn_domains
 nftset=/groq.com/4#inet#fw4#vpn_domains
 nftset=/groupon.com/4#inet#fw4#vpn_domains
 nftset=/guilded.gg/4#inet#fw4#vpn_domains
-nftset=/gulagu.net/4#inet#fw4#vpn_domains
-nftset=/habr.com/4#inet#fw4#vpn_domains
 nftset=/hackernoon.com/4#inet#fw4#vpn_domains
 nftset=/hackmd.io/4#inet#fw4#vpn_domains
 nftset=/halooglasi.com/4#inet#fw4#vpn_domains
@@ -875,3 +873,4 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
