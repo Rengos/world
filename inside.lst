@@ -1,3 +1,5 @@
+nftset=/instagram.com/4#inet#fw4#vpn_domains
+nftset=/cdninstagram.com/4#inet#fw4#vpn_domains
 nftset=/whoer.net/4#inet#fw4#vpn_domains
 nftset=/dis.gd/4#inet#fw4#vpn_domains
 nftset=/discord-activities.com/4#inet#fw4#vpn_domains
@@ -895,6 +897,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
