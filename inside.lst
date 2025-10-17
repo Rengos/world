@@ -1,3 +1,4 @@
+nftset=/manage.autodesk.com/4#inet#fw4#vpn_domains
 nftset=/help.autodesk.com/4#inet#fw4#vpn_domains
 nftset=/www.autodesk.com/4#inet#fw4#vpn_domains
 nftset=/softwareupdate.vmware.com/4#inet#fw4#vpn_domains
@@ -900,6 +901,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
