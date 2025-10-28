@@ -1,20 +1,18 @@
-nftset=/*.amplitude.com/4#inet#fw4#vpn_domains
-nftset=/*.newrelic.com/4#inet#fw4#vpn_domains
-nftset=/*.autodesk.eu/4#inet#fw4#vpn_domains
-nftset=/*.velaserver.com/4#inet#fw4#vpn_domains
+nftset=/.amplitude.com/4#inet#fw4#vpn_domains
+nftset=/.newrelic.com/4#inet#fw4#vpn_domains
+nftset=/.autodesk.eu/4#inet#fw4#vpn_domains
+nftset=/.velaserver.com/4#inet#fw4#vpn_domains
 nftset=/service.force.com/4#inet#fw4#vpn_domains      
-nftset=/*.pubnub.com/4#inet#fw4#vpn_domains          
-nftset=/*.googleapis.com/4#inet#fw4#vpn_domains
-nftset=/*.api.autodesk.com/4#inet#fw4#vpn_domains
+nftset=/.pubnub.com/4#inet#fw4#vpn_domains          
+nftset=/.googleapis.com/4#inet#fw4#vpn_domains
+nftset=/.api.autodesk.com/4#inet#fw4#vpn_domains
 nftset=/developer.api.autodesk.com/4#inet#fw4#vpn_domains
-nftset=/*.autodesk360.com/4#inet#fw4#vpn_domains
-nftset=/*.appstreaming.autodesk.com/4#inet#fw4#vpn_domains
-nftset=/*.cloudfront.net/4#inet#fw4#vpn_domains 
-nftset=/*.amazonaws.com/4#inet#fw4#vpn_domains
-nftset=/*.autodesk.com/4#inet#fw4#vpn_domains
-nftset=/*.autodesk.com/6#inet#fw4#vpn_domains
-nftset=/*.autodesk.net/4#inet#fw4#vpn_domains
-nftset=/*.autodesk.net/6#inet#fw4#vpn_domains
+nftset=/.autodesk360.com/4#inet#fw4#vpn_domains
+nftset=/.appstreaming.autodesk.com/4#inet#fw4#vpn_domains
+nftset=/.cloudfront.net/4#inet#fw4#vpn_domains 
+nftset=*.amazonaws.com/4#inet#fw4#vpn_domains
+nftset=/.autodesk.com/6#inet#fw4#vpn_domains
+nftset=/.autodesk.net/4#inet#fw4#vpn_domains
 nftset=/accounts.autodesk.com/4#inet#fw4#vpn_domains
 nftset=/lmapi-new.autodesk.net/4#inet#fw4#vpn_domains
 nftset=/lmlicenses.autodesk.com/4#inet#fw4#vpn_domains
@@ -930,6 +928,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
