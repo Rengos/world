@@ -1,5 +1,3 @@
-nftset=/store.epicgames.com/4#inet#fw4#vpn_domains
-nftset=/epicgames.com/4#inet#fw4#vpn_domains
 nftset=/a23-63-118-230.deploy.static.akamaitechnologies.com/4#inet#fw4#vpn_domains
 nftset=/.akamaitechnologies.com/4#inet#fw4#vpn_domains
 nftset=/static.akamaitechnologies.com/4#inet#fw4#vpn_domains
@@ -934,6 +932,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
