@@ -1,3 +1,12 @@
+nftset=/media-arn2-1.cdn.whatsapp.net/4#inet#fw4#vpn_domains
+nftset=/dit.whatsapp.net/4#inet#fw4#vpn_domains
+nftset=/graph.whatsapp.net/4#inet#fw4#vpn_domains
+nftset=/media-arn2-1.cdn.whatsapp.com/4#inet#fw4#vpn_domains
+nftset=/dit.whatsapp.com/4#inet#fw4#vpn_domains
+nftset=/graph.whatsapp.com/4#inet#fw4#vpn_domains
+nftset=/media-arn2-1.cdn.whatsapp.biz/4#inet#fw4#vpn_domains
+nftset=/dit.whatsapp.biz/4#inet#fw4#vpn_domains
+nftset=/graph.whatsapp.biz/4#inet#fw4#vpn_domains
 nftset=/whatsapp.biz/4#inet#fw4#vpn_domains
 nftset=/whatsapp.com/4#inet#fw4#vpn_domains
 nftset=/whatsapp.net/4#inet#fw4#vpn_domains
@@ -935,6 +944,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
