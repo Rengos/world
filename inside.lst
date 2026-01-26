@@ -1,3 +1,11 @@
+nftset=/work.meta.com/4#inet#fw4#vpn_domains
+nftset=/time.facebook.com/4#inet#fw4#vpn_domains
+nftset=/graph.facebook.com/4#inet#fw4#vpn_domains
+nftset=/graph.oculus.com/4#inet#fw4#vpn_domains
+nftset=/fbcdn.net/4#inet#fw4#vpn_domains
+nftset=/akamaihd.net/4#inet#fw4#vpn_domains
+nftset=/scontent.oculuscdn.com/4#inet#fw4#vpn_domains
+nftset=/securecdn.oculus.com/4#inet#fw4#vpn_domains
 nftset=/mmi*.whatsapp.net/4#inet#fw4#vpn_domains
 nftset=/sonar.*.fna.whatsapp.net/4#inet#fw4#vpn_domains
 nftset=/media-*.fna.whatsapp.net/4#inet#fw4#vpn_domains
@@ -1056,6 +1064,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
