@@ -1,3 +1,4 @@
+nftset=/nationalpublicdata.com/4#inet#fw4#vpn_domains
 nftset=/daisysms.com/4#inet#fw4#vpn_domains
 nftset=/xilo.in/4#inet#fw4#vpn_domains
 nftset=/onetimes.org/4#inet#fw4#vpn_domains
@@ -1068,6 +1069,7 @@ nftset=/zedge.net/4#inet#fw4#vpn_domains
 nftset=/zendesk.com/4#inet#fw4#vpn_domains
 
 nftset=/zerkalo.io/4#inet#fw4#vpn_domains
+
 
 
 
