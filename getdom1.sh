@@ -9,14 +9,16 @@ BLUE='\033[34;1m'
 YELLOW='\033[33;1m'
 NC='\033[0m'
 
-source /etc/os-release
+# FIX 1: /etc/os-release не имеет 'source' в /bin/sh — используем '.'
+. /etc/os-release
+
 VERSION_ID=$(echo "$VERSION" | awk -F. '{print $1}')
-[ "$VERSION_ID" -ne 24 ] && { echo -e "${RED}Скрипт только для OpenWrt 24.x (fw4/nftables)${NC}"; exit 1; }
+[ "$VERSION_ID" -ne 24 ] && { printf "${RED}Скрипт только для OpenWrt 24.x (fw4/nftables)${NC}\n"; exit 1; }
 
 MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo "Unknown")
-echo -e "${BLUE}Model: $MODEL${NC}"
-echo -e "${BLUE}Version: $OPENWRT_RELEASE${NC}"
-echo -e "${RED}Все действия нельзя откатить автоматически.${NC}"
+printf "${BLUE}Model: $MODEL${NC}\n"
+printf "${BLUE}Version: $OPENWRT_RELEASE${NC}\n"
+printf "${RED}Все действия нельзя откатить автоматически.${NC}\n"
 
 # AWG 2.0 detection
 AWG_VERSION="1.0"
@@ -25,32 +27,32 @@ MINOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 2)
 PATCH_VERSION=$(echo "$VERSION" | cut -d '.' -f 3)
 
 if [ "$MAJOR_VERSION" -gt 24 ] || \
-   [ "$MAJOR_VERSION" -eq 24 -a "$MINOR_VERSION" -gt 10 ] || \
-   [ "$MAJOR_VERSION" -eq 24 -a "$MINOR_VERSION" -eq 10 -a "$PATCH_VERSION" -ge 3 ] || \
-   [ "$MAJOR_VERSION" -eq 23 -a "$MINOR_VERSION" -eq 5 -a "$PATCH_VERSION" -ge 6 ]; then
+   [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -gt 10 ] || \
+   [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -eq 10 ] && [ "$PATCH_VERSION" -ge 3 ] || \
+   [ "$MAJOR_VERSION" -eq 23 ] && [ "$MINOR_VERSION" -eq 5 ] && [ "$PATCH_VERSION" -ge 6 ]; then
     AWG_VERSION="2.0"
     LUCI_PKG="luci-proto-amneziawg"
 else
     LUCI_PKG="luci-app-amneziawg"
 fi
 
-echo -e "${BLUE}Detected AmneziaWG version: $AWG_VERSION${NC}"
-echo -e "${BLUE}LuCI package: $LUCI_PKG${NC}"
+printf "${BLUE}Detected AmneziaWG version: $AWG_VERSION${NC}\n"
+printf "${BLUE}LuCI package: $LUCI_PKG${NC}\n"
 
 PKG_MANAGER="opkg"
 command -v apk >/dev/null 2>&1 && PKG_MANAGER="apk"
 
 check_repo() {
-    echo -e "${GREEN}Обновление репозиториев...${NC}"
-    $PKG_MANAGER update || { echo -e "${RED}Нет доступа к репозиториям${NC}"; exit 1; }
+    printf "${GREEN}Обновление репозиториев...${NC}\n"
+    $PKG_MANAGER update || { printf "${RED}Нет доступа к репозиториям${NC}\n"; exit 1; }
 }
 
 install_base() {
     for pkg in curl nano; do
         if $PKG_MANAGER list-installed 2>/dev/null | grep -q "^$pkg "; then
-            echo -e "${GREEN}$pkg уже установлен${NC}"
+            printf "${GREEN}$pkg уже установлен${NC}\n"
         else
-            echo -e "${GREEN}Установка $pkg...${NC}"
+            printf "${GREEN}Установка $pkg...${NC}\n"
             $PKG_MANAGER install "$pkg"
         fi
     done
@@ -60,14 +62,14 @@ install_awg_packages() {
     if $PKG_MANAGER list-installed 2>/dev/null | grep -q amneziawg-tools && \
        $PKG_MANAGER list-installed 2>/dev/null | grep -q kmod-amneziawg && \
        $PKG_MANAGER list-installed 2>/dev/null | grep -q "$LUCI_PKG"; then
-        echo -e "${GREEN}AmneziaWG $AWG_VERSION уже установлен${NC}"
+        printf "${GREEN}AmneziaWG $AWG_VERSION уже установлен${NC}\n"
         return
     fi
 
-    echo -e "${GREEN}Попытка установить AmneziaWG $AWG_VERSION из репозитория...${NC}"
+    printf "${GREEN}Попытка установить AmneziaWG $AWG_VERSION из репозитория...${NC}\n"
     $PKG_MANAGER install amneziawg-tools kmod-amneziawg "$LUCI_PKG" 2>/dev/null && return
 
-    echo -e "${YELLOW}Репозиторий недоступен. Скачивание AmneziaWG с GitHub...${NC}"
+    printf "${YELLOW}Репозиторий недоступен. Скачивание AmneziaWG с GitHub...${NC}\n"
     PKGARCH=$($PKG_MANAGER print-architecture 2>/dev/null | awk 'BEGIN {max=0} {if ($3 > max) {max = $3; arch = $2}} END {print arch}')
     TARGET=$(ubus call system board | jsonfilter -e '@.release.target' | cut -d '/' -f 1)
     SUBTARGET=$(ubus call system board | jsonfilter -e '@.release.target' | cut -d '/' -f 2)
@@ -78,14 +80,14 @@ install_awg_packages() {
 
     for pkg in kmod-amneziawg amneziawg-tools "$LUCI_PKG"; do
         FILE="${pkg}${POSTFIX}"
-        echo -e "${GREEN}Скачивание $FILE...${NC}"
+        printf "${GREEN}Скачивание $FILE...${NC}\n"
         curl -fsSL --connect-timeout 30 "${BASE}${FILE}" -o "$TMPD/$FILE" || {
-            echo -e "${RED}Ошибка скачивания $FILE${NC}"
-            echo -e "${YELLOW}Проверьте, что релиз v${VER} существует на GitHub Slava-Shchipunov/awg-openwrt${NC}"
+            printf "${RED}Ошибка скачивания $FILE${NC}\n"
+            printf "${YELLOW}Проверьте, что релиз v${VER} существует на GitHub Slava-Shchipunov/awg-openwrt${NC}\n"
             exit 1
         }
         $PKG_MANAGER install "$TMPD/$FILE" || {
-            echo -e "${RED}Ошибка установки $FILE${NC}"; exit 1
+            printf "${RED}Ошибка установки $FILE${NC}\n"; exit 1
         }
     done
 
@@ -93,19 +95,19 @@ install_awg_packages() {
     if [ "$AWG_VERSION" = "2.0" ]; then
         RU_FILE="luci-i18n-amneziawg-ru${POSTFIX}"
         if curl -fsSL --connect-timeout 15 "${BASE}${RU_FILE}" -o "$TMPD/$RU_FILE" 2>/dev/null; then
-            $PKG_MANAGER install "$TMPD/$RU_FILE" 2>/dev/null && echo -e "${GREEN}Русская локализация установлена${NC}"
+            $PKG_MANAGER install "$TMPD/$RU_FILE" 2>/dev/null && printf "${GREEN}Русская локализация установлена${NC}\n"
         fi
     fi
 
     rm -rf "$TMPD"
-    echo -e "${GREEN}AmneziaWG $AWG_VERSION установлен${NC}"
+    printf "${GREEN}AmneziaWG $AWG_VERSION установлен${NC}\n"
 }
 
 setup_dnsmasq() {
     if $PKG_MANAGER list-installed 2>/dev/null | grep -q dnsmasq-full; then
-        echo -e "${GREEN}dnsmasq-full уже установлен${NC}"
+        printf "${GREEN}dnsmasq-full уже установлен${NC}\n"
     else
-        echo -e "${GREEN}Замена dnsmasq на dnsmasq-full...${NC}"
+        printf "${GREEN}Замена dnsmasq на dnsmasq-full...${NC}\n"
         cd /tmp
         $PKG_MANAGER download dnsmasq-full
         $PKG_MANAGER remove dnsmasq
@@ -119,39 +121,40 @@ setup_dnsmasq() {
 }
 
 read_awg_params() {
-    echo -e "${YELLOW}--- Параметры AmneziaWG $AWG_VERSION ---${NC}"
-    read -r -p "Приватный ключ [Interface]: " AWG_PRIVATE_KEY
+    printf "${YELLOW}--- Параметры AmneziaWG $AWG_VERSION ---${NC}\n"
+    read -r AWG_PRIVATE_KEY && printf "Приватный ключ [Interface]: " || { printf "Приватный ключ [Interface]: "; read -r AWG_PRIVATE_KEY; }
+    # FIX 2: read -r -p не поддерживается в /bin/sh — используем printf + read
+    printf "Приватный ключ [Interface]: "; read -r AWG_PRIVATE_KEY
     while true; do
-        read -r -p "Внутренний IP с маской (например 10.0.0.2/24) [Interface]: " AWG_IP
+        printf "Внутренний IP с маской (например 10.0.0.2/24) [Interface]: "; read -r AWG_IP
         echo "$AWG_IP" | grep -oqE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]+$' && break
         echo "Неверный IP, повторите"
     done
-    read -r -p "Jc (junk packet count) [Interface]: " AWG_JC
-    read -r -p "Jmin (junk packet minimum size) [Interface]: " AWG_JMIN
-    read -r -p "Jmax (junk packet maximum size) [Interface]: " AWG_JMAX
-    read -r -p "S1 (junk packet size1) [Interface]: " AWG_S1
-    read -r -p "S2 (junk packet size2) [Interface]: " AWG_S2
-    read -r -p "H1 (header packet size1) [Interface]: " AWG_H1
-    read -r -p "H2 (header packet size2) [Interface]: " AWG_H2
-    read -r -p "H3 (header packet size3) [Interface]: " AWG_H3
-    read -r -p "H4 (header packet size4) [Interface]: " AWG_H4
+    printf "Jc (junk packet count) [Interface]: "; read -r AWG_JC
+    printf "Jmin (junk packet minimum size) [Interface]: "; read -r AWG_JMIN
+    printf "Jmax (junk packet maximum size) [Interface]: "; read -r AWG_JMAX
+    printf "S1 (junk packet size1) [Interface]: "; read -r AWG_S1
+    printf "S2 (junk packet size2) [Interface]: "; read -r AWG_S2
+    printf "H1 (header packet size1) [Interface]: "; read -r AWG_H1
+    printf "H2 (header packet size2) [Interface]: "; read -r AWG_H2
+    printf "H3 (header packet size3) [Interface]: "; read -r AWG_H3
+    printf "H4 (header packet size4) [Interface]: "; read -r AWG_H4
 
-    # AWG 2.0 дополнительные параметры
     if [ "$AWG_VERSION" = "2.0" ]; then
-        echo -e "${YELLOW}--- Дополнительные параметры AmneziaWG 2.0 (опционально, Enter чтобы пропустить) ---${NC}"
-        read -r -p "S3 [Interface]: " AWG_S3
-        read -r -p "S4 [Interface]: " AWG_S4
-        read -r -p "I1 [Interface]: " AWG_I1
-        read -r -p "I2 [Interface]: " AWG_I2
-        read -r -p "I3 [Interface]: " AWG_I3
-        read -r -p "I4 [Interface]: " AWG_I4
-        read -r -p "I5 [Interface]: " AWG_I5
+        printf "${YELLOW}--- Дополнительные параметры AmneziaWG 2.0 (опционально, Enter чтобы пропустить) ---${NC}\n"
+        printf "S3 [Interface]: "; read -r AWG_S3
+        printf "S4 [Interface]: "; read -r AWG_S4
+        printf "I1 [Interface]: "; read -r AWG_I1
+        printf "I2 [Interface]: "; read -r AWG_I2
+        printf "I3 [Interface]: "; read -r AWG_I3
+        printf "I4 [Interface]: "; read -r AWG_I4
+        printf "I5 [Interface]: "; read -r AWG_I5
     fi
 
-    read -r -p "Публичный ключ [Peer]: " AWG_PUBLIC_KEY
-    read -r -p "PresharedKey (или Enter): " AWG_PRESHARED_KEY
-    read -r -p "Endpoint хост (без порта) [Peer]: " AWG_ENDPOINT
-    read -r -p "Endpoint порт [51820]: " AWG_ENDPOINT_PORT
+    printf "Публичный ключ [Peer]: "; read -r AWG_PUBLIC_KEY
+    printf "PresharedKey (или Enter): "; read -r AWG_PRESHARED_KEY
+    printf "Endpoint хост (без порта) [Peer]: "; read -r AWG_ENDPOINT
+    printf "Endpoint порт [51820]: "; read -r AWG_ENDPOINT_PORT
     AWG_ENDPOINT_PORT=${AWG_ENDPOINT_PORT:-51820}
 }
 
@@ -182,7 +185,7 @@ apply_awg_params() {
 }
 
 setup_awg0() {
-    echo -e "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg0) — основной VPN...${NC}"
+    printf "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg0) — основной VPN...${NC}\n"
     read_awg_params
 
     uci set network.awg0=interface
@@ -200,26 +203,29 @@ setup_awg0() {
     uci set network.@amneziawg_awg0[0].endpoint_port="$AWG_ENDPOINT_PORT"
     uci set network.@amneziawg_awg0[0].allowed_ips='0.0.0.0/0'
     uci commit network
-    echo -e "${GREEN}awg0 создан${NC}"
+    printf "${GREEN}awg0 создан${NC}\n"
 }
 
 setup_awg1() {
-    echo -e "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg1) — YouTube/Google...${NC}"
-    read -r -p "Использовать те же Amnezia-параметры (Jc/Jmin/Jmax/S1/S2/H1-H4"
-    [ "$AWG_VERSION" = "2.0" ] && echo -n "/S3/S4/I1-I5"
-    echo "), что и для awg0? (y/n): "
+    printf "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg1) — YouTube/Google...${NC}\n"
+
+    # FIX 3: сломанный read с echo -n внутри — разбито на отдельные printf
+    printf "Использовать те же Amnezia-параметры (Jc/Jmin/Jmax/S1/S2/H1-H4"
+    [ "$AWG_VERSION" = "2.0" ] && printf "/S3/S4/I1-I5"
+    printf "), что и для awg0? (y/n): "
     read -r SAME
+
     if [ "$SAME" = "y" ] || [ "$SAME" = "Y" ]; then
-        read -r -p "Приватный ключ awg1 [Interface]: " AWG_PRIVATE_KEY
+        printf "Приватный ключ awg1 [Interface]: "; read -r AWG_PRIVATE_KEY
         while true; do
-            read -r -p "Внутренний IP с маской awg1 [Interface]: " AWG_IP
+            printf "Внутренний IP с маской awg1 [Interface]: "; read -r AWG_IP
             echo "$AWG_IP" | grep -oqE '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]+$' && break
             echo "Неверный IP, повторите"
         done
-        read -r -p "Публичный ключ awg1 [Peer]: " AWG_PUBLIC_KEY
-        read -r -p "PresharedKey awg1 (или Enter): " AWG_PRESHARED_KEY
-        read -r -p "Endpoint хост awg1 [Peer]: " AWG_ENDPOINT
-        read -r -p "Endpoint порт awg1 [51820]: " AWG_ENDPOINT_PORT
+        printf "Публичный ключ awg1 [Peer]: "; read -r AWG_PUBLIC_KEY
+        printf "PresharedKey awg1 (или Enter): "; read -r AWG_PRESHARED_KEY
+        printf "Endpoint хост awg1 [Peer]: "; read -r AWG_ENDPOINT
+        printf "Endpoint порт awg1 [51820]: "; read -r AWG_ENDPOINT_PORT
         AWG_ENDPOINT_PORT=${AWG_ENDPOINT_PORT:-51820}
     else
         read_awg_params
@@ -240,11 +246,11 @@ setup_awg1() {
     uci set network.@amneziawg_awg1[0].endpoint_port="$AWG_ENDPOINT_PORT"
     uci set network.@amneziawg_awg1[0].allowed_ips='0.0.0.0/0'
     uci commit network
-    echo -e "${GREEN}awg1 создан${NC}"
+    printf "${GREEN}awg1 создан${NC}\n"
 }
 
 setup_routing() {
-    echo -e "${GREEN}Настройка Policy-Based Routing (ip rule + ip route)...${NC}"
+    printf "${GREEN}Настройка Policy-Based Routing (ip rule + ip route)...${NC}\n"
 
     grep -q "99 vpn" /etc/iproute2/rt_tables || echo '99 vpn' >> /etc/iproute2/rt_tables
     grep -q "110 vpninternal" /etc/iproute2/rt_tables || echo '110 vpninternal' >> /etc/iproute2/rt_tables
@@ -284,11 +290,11 @@ setup_routing() {
         uci set network.vpninternal_route.target='0.0.0.0/0'
         uci commit network
     fi
-    echo -e "${GREEN}Маршрутизация настроена${NC}"
+    printf "${GREEN}Маршрутизация настроена${NC}\n"
 }
 
 setup_firewall() {
-    echo -e "${GREEN}Настройка Firewall zones (fw4)...${NC}"
+    printf "${GREEN}Настройка Firewall zones (fw4)...${NC}\n"
 
     for z in awg awg_internal; do
         if ! uci show firewall 2>/dev/null | grep -q "@zone.*name='$z'"; then
@@ -303,9 +309,9 @@ setup_firewall() {
             uci set firewall.@zone[-1].mtu_fix='1'
             uci set firewall.@zone[-1].family='ipv4'
             uci commit firewall
-            echo -e "${GREEN}Zone $z создана${NC}"
+            printf "${GREEN}Zone $z создана${NC}\n"
         else
-            echo -e "${GREEN}Zone $z уже существует${NC}"
+            printf "${GREEN}Zone $z уже существует${NC}\n"
         fi
     done
 
@@ -317,13 +323,13 @@ setup_firewall() {
             uci set firewall.@forwarding[-1].dest="$fwd"
             uci set firewall.@forwarding[-1].family='ipv4'
             uci commit firewall
-            echo -e "${GREEN}Forwarding ${fwd}-lan создан${NC}"
+            printf "${GREEN}Forwarding ${fwd}-lan создан${NC}\n"
         fi
     done
 }
 
 setup_nft() {
-    echo -e "${GREEN}Настройка nftables (fw4) + nftsets...${NC}"
+    printf "${GREEN}Настройка nftables (fw4) + nftsets...${NC}\n"
     mkdir -p /etc/nftables.d
 
     cat > /etc/nftables.d/10-vpn-sets.nft << 'EOF'
@@ -354,14 +360,14 @@ chain route_output {
     ip daddr @vpn_domains_internal meta mark set 0x2 counter comment "awg1 local"
 }
 EOF
-    echo -e "${GREEN}nftables rules созданы${NC}"
+    printf "${GREEN}nftables rules созданы${NC}\n"
 }
 
 setup_dns_resolver() {
     echo "Настроить DNS-шифрование (Stubby/DoT)?"
     echo "1) Нет (по умолчанию)"
     echo "2) Stubby"
-    read -r -p "Ваш выбор: " DNS_CHOICE
+    printf "Ваш выбор: "; read -r DNS_CHOICE
     if [ "$DNS_CHOICE" = "2" ]; then
         $PKG_MANAGER install stubby
         uci set dhcp.@dnsmasq[0].noresolv="1"
@@ -371,7 +377,7 @@ setup_dns_resolver() {
         uci commit dhcp
         /etc/init.d/stubby enable
         /etc/init.d/stubby start
-        echo -e "${GREEN}Stubby настроен${NC}"
+        printf "${GREEN}Stubby настроен${NC}\n"
     fi
 }
 
@@ -381,7 +387,7 @@ setup_getdomains() {
     echo "2) Россия outside (вы за пределами РФ, VPN для русских ресурсов)"
     echo "3) Украина"
     echo "4) Пропустить"
-    read -r -p "Ваш выбор: " COUNTRY
+    printf "Ваш выбор: "; read -r COUNTRY
 
     case "$COUNTRY" in
         1) DOMAINS_URL="https://raw.githubusercontent.com/Rengos/world/refs/heads/main/inside.lst" ;;
@@ -399,9 +405,7 @@ start() {
     local count=0
     while [ \$count -lt 5 ]; do
         if curl -fsSL --connect-timeout 15 "$DOMAINS_URL" -o /tmp/dnsmasq.d/domains.lst; then
-            # Удаляем youtube/google из основного списка (чтобы не дублировались)
             sed -i '/youtube\\.com\\|googlevideo\\.com\\|youtubekids\\.com\\|googleapis\\.com\\|ytimg\\.com\\|ggpht\\.com/d' /tmp/dnsmasq.d/domains.lst
-            # Добавляем YT/Google во внутренний nftset (awg1)
             cat >> /tmp/dnsmasq.d/domains.lst << 'INNER'
 nftset=/youtube.com/4#inet#fw4#vpn_domains_internal
 nftset=/googlevideo.com/4#inet#fw4#vpn_domains_internal
@@ -430,7 +434,7 @@ EOF
         /etc/init.d/cron restart
     fi
 
-    echo -e "${GREEN}Загрузка списка доменов...${NC}"
+    printf "${GREEN}Загрузка списка доменов...${NC}\n"
     /etc/init.d/getdomains start
 }
 
@@ -447,12 +451,12 @@ setup_nft
 setup_dns_resolver
 setup_getdomains
 
-echo -e "${GREEN}Перезапуск сети и firewall...${NC}"
+printf "${GREEN}Перезапуск сети и firewall...${NC}\n"
 /etc/init.d/network restart
 /etc/init.d/firewall restart
 
 echo ""
-echo -e "${GREEN}=== Готово! AmneziaWG $AWG_VERSION + раздельная маршрутизация настроены ===${NC}"
+printf "${GREEN}=== Готово! AmneziaWG $AWG_VERSION + раздельная маршрутизация настроены ===${NC}\n"
 echo ""
 echo "Проверка:"
 echo "  nft list set inet fw4 vpn_domains"
