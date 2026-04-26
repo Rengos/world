@@ -9,27 +9,32 @@ BLUE='\033[34;1m'
 YELLOW='\033[33;1m'
 NC='\033[0m'
 
-# FIX 1: /etc/os-release не имеет 'source' в /bin/sh — используем '.'
 . /etc/os-release
 
-VERSION_ID=$(echo "$VERSION" | awk -F. '{print $1}')
-[ "$VERSION_ID" -ne 24 ] && { printf "${RED}Скрипт только для OpenWrt 24.x (fw4/nftables)${NC}\n"; exit 1; }
+# Берём числовую версию через ubus — надёжнее, чем парсить $VERSION из os-release
+# (там может быть строка вида "r28306-..." вместо "24.10.5")
+OWRT_VER=$(ubus call system board 2>/dev/null | jsonfilter -e '@.release.version')
+# Запасной вариант — парсим DISTRIB_RELEASE из os-release (формат "24.10.5")
+[ -z "$OWRT_VER" ] && OWRT_VER=$(echo "$DISTRIB_RELEASE" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+')
+[ -z "$OWRT_VER" ] && OWRT_VER="24.10.5"  # fallback для данного устройства
+
+MAJOR_VERSION=$(echo "$OWRT_VER" | cut -d '.' -f 1)
+MINOR_VERSION=$(echo "$OWRT_VER" | cut -d '.' -f 2)
+PATCH_VERSION=$(echo "$OWRT_VER" | cut -d '.' -f 3)
+
+[ "$MAJOR_VERSION" -ne 24 ] && { printf "${RED}Скрипт только для OpenWrt 24.x (fw4/nftables)${NC}\n"; exit 1; }
 
 MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo "Unknown")
 printf "${BLUE}Model: $MODEL${NC}\n"
-printf "${BLUE}Version: $OPENWRT_RELEASE${NC}\n"
+printf "${BLUE}Version: $OWRT_VER${NC}\n"
 printf "${RED}Все действия нельзя откатить автоматически.${NC}\n"
 
-# AWG 2.0 detection
+# AWG 2.0: начиная с 24.10.3 и 23.05.6 пакет называется luci-proto-amneziawg
 AWG_VERSION="1.0"
-MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
-MINOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 2)
-PATCH_VERSION=$(echo "$VERSION" | cut -d '.' -f 3)
-
 if [ "$MAJOR_VERSION" -gt 24 ] || \
-   [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -gt 10 ] || \
-   [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -eq 10 ] && [ "$PATCH_VERSION" -ge 3 ] || \
-   [ "$MAJOR_VERSION" -eq 23 ] && [ "$MINOR_VERSION" -eq 5 ] && [ "$PATCH_VERSION" -ge 6 ]; then
+   { [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -gt 10 ]; } || \
+   { [ "$MAJOR_VERSION" -eq 24 ] && [ "$MINOR_VERSION" -eq 10 ] && [ "$PATCH_VERSION" -ge 3 ]; } || \
+   { [ "$MAJOR_VERSION" -eq 23 ] && [ "$MINOR_VERSION" -eq 5 ] && [ "$PATCH_VERSION" -ge 6 ]; }; then
     AWG_VERSION="2.0"
     LUCI_PKG="luci-proto-amneziawg"
 else
@@ -59,35 +64,55 @@ install_base() {
 }
 
 install_awg_packages() {
-    if $PKG_MANAGER list-installed 2>/dev/null | grep -q amneziawg-tools && \
-       $PKG_MANAGER list-installed 2>/dev/null | grep -q kmod-amneziawg && \
-       $PKG_MANAGER list-installed 2>/dev/null | grep -q "$LUCI_PKG"; then
-        printf "${GREEN}AmneziaWG $AWG_VERSION уже установлен${NC}\n"
+    printf "${GREEN}Проверка пакетов AmneziaWG $AWG_VERSION...${NC}\n"
+
+    INSTALLED=$($PKG_MANAGER list-installed 2>/dev/null)
+    NEED_INSTALL=""
+    for pkg in kmod-amneziawg amneziawg-tools "$LUCI_PKG"; do
+        if echo "$INSTALLED" | grep -q "^$pkg "; then
+            printf "${GREEN}$pkg уже установлен${NC}\n"
+        else
+            NEED_INSTALL="$NEED_INSTALL $pkg"
+        fi
+    done
+
+    if [ -z "$NEED_INSTALL" ]; then
+        printf "${GREEN}AmneziaWG $AWG_VERSION уже установлен полностью${NC}\n"
         return
     fi
 
-    printf "${GREEN}Попытка установить AmneziaWG $AWG_VERSION из репозитория...${NC}\n"
-    $PKG_MANAGER install amneziawg-tools kmod-amneziawg "$LUCI_PKG" 2>/dev/null && return
+    printf "${GREEN}Нужно установить:$NEED_INSTALL${NC}\n"
 
-    printf "${YELLOW}Репозиторий недоступен. Скачивание AmneziaWG с GitHub...${NC}\n"
+    # Пробуем из репозитория
+    printf "${GREEN}Попытка установить из репозитория...${NC}\n"
+    if $PKG_MANAGER install $NEED_INSTALL 2>/dev/null; then
+        printf "${GREEN}AmneziaWG $AWG_VERSION установлен из репозитория${NC}\n"
+        return
+    fi
+
+    # Скачиваем с GitHub только недостающие пакеты
+    printf "${YELLOW}Репозиторий недоступен. Скачивание с GitHub...${NC}\n"
     PKGARCH=$($PKG_MANAGER print-architecture 2>/dev/null | awk 'BEGIN {max=0} {if ($3 > max) {max = $3; arch = $2}} END {print arch}')
     TARGET=$(ubus call system board | jsonfilter -e '@.release.target' | cut -d '/' -f 1)
     SUBTARGET=$(ubus call system board | jsonfilter -e '@.release.target' | cut -d '/' -f 2)
-    VER=$(ubus call system board | jsonfilter -e '@.release.version')
+    VER=$OWRT_VER
     POSTFIX="_v${VER}_${PKGARCH}_${TARGET}_${SUBTARGET}.ipk"
     BASE="https://github.com/Slava-Shchipunov/awg-openwrt/releases/download/v${VER}/"
     TMPD="/tmp/amneziawg"; mkdir -p "$TMPD"
 
-    for pkg in kmod-amneziawg amneziawg-tools "$LUCI_PKG"; do
+    for pkg in $NEED_INSTALL; do
         FILE="${pkg}${POSTFIX}"
         printf "${GREEN}Скачивание $FILE...${NC}\n"
         curl -fsSL --connect-timeout 30 "${BASE}${FILE}" -o "$TMPD/$FILE" || {
             printf "${RED}Ошибка скачивания $FILE${NC}\n"
-            printf "${YELLOW}Проверьте, что релиз v${VER} существует на GitHub Slava-Shchipunov/awg-openwrt${NC}\n"
+            printf "${YELLOW}URL: ${BASE}${FILE}${NC}\n"
+            rm -rf "$TMPD"
             exit 1
         }
         $PKG_MANAGER install "$TMPD/$FILE" || {
-            printf "${RED}Ошибка установки $FILE${NC}\n"; exit 1
+            printf "${RED}Ошибка установки $FILE${NC}\n"
+            rm -rf "$TMPD"
+            exit 1
         }
     done
 
