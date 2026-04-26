@@ -1,6 +1,7 @@
 #!/bin/sh
 # OpenWrt 24.x (fw4/nftables) + AmneziaWG 2.0 (awg0 + awg1)
-# Раздельная маршрутизация через nftsets. WAN (L2TP/PPPoE/DHCP) не трогается.
+# GL.iNet GL-MT3000 / mediatek/filogic / aarch64_cortex-a53
+# Раздельная маршрутизация через nftsets. WAN не трогается.
 
 GREEN='\033[32;1m'
 RED='\033[31;1m'
@@ -16,6 +17,25 @@ MODEL=$(cat /tmp/sysinfo/model 2>/dev/null || echo "Unknown")
 echo -e "${BLUE}Model: $MODEL${NC}"
 echo -e "${BLUE}Version: $OPENWRT_RELEASE${NC}"
 echo -e "${RED}Все действия нельзя откатить автоматически.${NC}"
+
+# AWG 2.0 detection
+AWG_VERSION="1.0"
+MAJOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 1)
+MINOR_VERSION=$(echo "$VERSION" | cut -d '.' -f 2)
+PATCH_VERSION=$(echo "$VERSION" | cut -d '.' -f 3)
+
+if [ "$MAJOR_VERSION" -gt 24 ] || \
+   [ "$MAJOR_VERSION" -eq 24 -a "$MINOR_VERSION" -gt 10 ] || \
+   [ "$MAJOR_VERSION" -eq 24 -a "$MINOR_VERSION" -eq 10 -a "$PATCH_VERSION" -ge 3 ] || \
+   [ "$MAJOR_VERSION" -eq 23 -a "$MINOR_VERSION" -eq 5 -a "$PATCH_VERSION" -ge 6 ]; then
+    AWG_VERSION="2.0"
+    LUCI_PKG="luci-proto-amneziawg"
+else
+    LUCI_PKG="luci-app-amneziawg"
+fi
+
+echo -e "${BLUE}Detected AmneziaWG version: $AWG_VERSION${NC}"
+echo -e "${BLUE}LuCI package: $LUCI_PKG${NC}"
 
 PKG_MANAGER="opkg"
 command -v apk >/dev/null 2>&1 && PKG_MANAGER="apk"
@@ -39,13 +59,13 @@ install_base() {
 install_awg_packages() {
     if $PKG_MANAGER list-installed 2>/dev/null | grep -q amneziawg-tools && \
        $PKG_MANAGER list-installed 2>/dev/null | grep -q kmod-amneziawg && \
-       $PKG_MANAGER list-installed 2>/dev/null | grep -q luci-app-amneziawg; then
-        echo -e "${GREEN}AmneziaWG уже установлен${NC}"
+       $PKG_MANAGER list-installed 2>/dev/null | grep -q "$LUCI_PKG"; then
+        echo -e "${GREEN}AmneziaWG $AWG_VERSION уже установлен${NC}"
         return
     fi
 
-    echo -e "${GREEN}Попытка установить AmneziaWG из репозитория...${NC}"
-    $PKG_MANAGER install amneziawg-tools kmod-amneziawg luci-app-amneziawg 2>/dev/null && return
+    echo -e "${GREEN}Попытка установить AmneziaWG $AWG_VERSION из репозитория...${NC}"
+    $PKG_MANAGER install amneziawg-tools kmod-amneziawg "$LUCI_PKG" 2>/dev/null && return
 
     echo -e "${YELLOW}Репозиторий недоступен. Скачивание AmneziaWG с GitHub...${NC}"
     PKGARCH=$($PKG_MANAGER print-architecture 2>/dev/null | awk 'BEGIN {max=0} {if ($3 > max) {max = $3; arch = $2}} END {print arch}')
@@ -56,18 +76,29 @@ install_awg_packages() {
     BASE="https://github.com/Slava-Shchipunov/awg-openwrt/releases/download/v${VER}/"
     TMPD="/tmp/amneziawg"; mkdir -p "$TMPD"
 
-    for pkg in amneziawg-tools kmod-amneziawg luci-app-amneziawg; do
+    for pkg in kmod-amneziawg amneziawg-tools "$LUCI_PKG"; do
         FILE="${pkg}${POSTFIX}"
         echo -e "${GREEN}Скачивание $FILE...${NC}"
         curl -fsSL --connect-timeout 30 "${BASE}${FILE}" -o "$TMPD/$FILE" || {
-            echo -e "${RED}Ошибка скачивания $FILE. Установите вручную.${NC}"; exit 1;
+            echo -e "${RED}Ошибка скачивания $FILE${NC}"
+            echo -e "${YELLOW}Проверьте, что релиз v${VER} существует на GitHub Slava-Shchipunov/awg-openwrt${NC}"
+            exit 1
         }
         $PKG_MANAGER install "$TMPD/$FILE" || {
-            echo -e "${RED}Ошибка установки $FILE${NC}"; exit 1;
+            echo -e "${RED}Ошибка установки $FILE${NC}"; exit 1
         }
     done
+
+    # AWG 2.0 русская локализация (опционально)
+    if [ "$AWG_VERSION" = "2.0" ]; then
+        RU_FILE="luci-i18n-amneziawg-ru${POSTFIX}"
+        if curl -fsSL --connect-timeout 15 "${BASE}${RU_FILE}" -o "$TMPD/$RU_FILE" 2>/dev/null; then
+            $PKG_MANAGER install "$TMPD/$RU_FILE" 2>/dev/null && echo -e "${GREEN}Русская локализация установлена${NC}"
+        fi
+    fi
+
     rm -rf "$TMPD"
-    echo -e "${GREEN}AmneziaWG установлен${NC}"
+    echo -e "${GREEN}AmneziaWG $AWG_VERSION установлен${NC}"
 }
 
 setup_dnsmasq() {
@@ -88,7 +119,7 @@ setup_dnsmasq() {
 }
 
 read_awg_params() {
-    echo -e "${YELLOW}--- Параметры AmneziaWG 2.0 ---${NC}"
+    echo -e "${YELLOW}--- Параметры AmneziaWG $AWG_VERSION ---${NC}"
     read -r -p "Приватный ключ [Interface]: " AWG_PRIVATE_KEY
     while true; do
         read -r -p "Внутренний IP с маской (например 10.0.0.2/24) [Interface]: " AWG_IP
@@ -104,6 +135,19 @@ read_awg_params() {
     read -r -p "H2 (header packet size2) [Interface]: " AWG_H2
     read -r -p "H3 (header packet size3) [Interface]: " AWG_H3
     read -r -p "H4 (header packet size4) [Interface]: " AWG_H4
+
+    # AWG 2.0 дополнительные параметры
+    if [ "$AWG_VERSION" = "2.0" ]; then
+        echo -e "${YELLOW}--- Дополнительные параметры AmneziaWG 2.0 (опционально, Enter чтобы пропустить) ---${NC}"
+        read -r -p "S3 [Interface]: " AWG_S3
+        read -r -p "S4 [Interface]: " AWG_S4
+        read -r -p "I1 [Interface]: " AWG_I1
+        read -r -p "I2 [Interface]: " AWG_I2
+        read -r -p "I3 [Interface]: " AWG_I3
+        read -r -p "I4 [Interface]: " AWG_I4
+        read -r -p "I5 [Interface]: " AWG_I5
+    fi
+
     read -r -p "Публичный ключ [Peer]: " AWG_PUBLIC_KEY
     read -r -p "PresharedKey (или Enter): " AWG_PRESHARED_KEY
     read -r -p "Endpoint хост (без порта) [Peer]: " AWG_ENDPOINT
@@ -111,24 +155,39 @@ read_awg_params() {
     AWG_ENDPOINT_PORT=${AWG_ENDPOINT_PORT:-51820}
 }
 
+apply_awg_params() {
+    local iface="$1"
+    uci set network.${iface}.proto='amneziawg'
+    uci set network.${iface}.private_key="$AWG_PRIVATE_KEY"
+    uci set network.${iface}.addresses="$AWG_IP"
+    uci set network.${iface}.awg_jc="$AWG_JC"
+    uci set network.${iface}.awg_jmin="$AWG_JMIN"
+    uci set network.${iface}.awg_jmax="$AWG_JMAX"
+    uci set network.${iface}.awg_s1="$AWG_S1"
+    uci set network.${iface}.awg_s2="$AWG_S2"
+    uci set network.${iface}.awg_h1="$AWG_H1"
+    uci set network.${iface}.awg_h2="$AWG_H2"
+    uci set network.${iface}.awg_h3="$AWG_H3"
+    uci set network.${iface}.awg_h4="$AWG_H4"
+
+    if [ "$AWG_VERSION" = "2.0" ]; then
+        [ -n "$AWG_S3" ] && uci set network.${iface}.awg_s3="$AWG_S3"
+        [ -n "$AWG_S4" ] && uci set network.${iface}.awg_s4="$AWG_S4"
+        [ -n "$AWG_I1" ] && uci set network.${iface}.awg_i1="$AWG_I1"
+        [ -n "$AWG_I2" ] && uci set network.${iface}.awg_i2="$AWG_I2"
+        [ -n "$AWG_I3" ] && uci set network.${iface}.awg_i3="$AWG_I3"
+        [ -n "$AWG_I4" ] && uci set network.${iface}.awg_i4="$AWG_I4"
+        [ -n "$AWG_I5" ] && uci set network.${iface}.awg_i5="$AWG_I5"
+    fi
+}
+
 setup_awg0() {
-    echo -e "${GREEN}Настройка AmneziaWG 2.0 (awg0) — основной VPN...${NC}"
+    echo -e "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg0) — основной VPN...${NC}"
     read_awg_params
 
     uci set network.awg0=interface
-    uci set network.awg0.proto='amneziawg'
-    uci set network.awg0.private_key="$AWG_PRIVATE_KEY"
-    uci set network.awg0.addresses="$AWG_IP"
+    apply_awg_params "awg0"
     uci set network.awg0.listen_port='51820'
-    uci set network.awg0.awg_jc="$AWG_JC"
-    uci set network.awg0.awg_jmin="$AWG_JMIN"
-    uci set network.awg0.awg_jmax="$AWG_JMAX"
-    uci set network.awg0.awg_s1="$AWG_S1"
-    uci set network.awg0.awg_s2="$AWG_S2"
-    uci set network.awg0.awg_h1="$AWG_H1"
-    uci set network.awg0.awg_h2="$AWG_H2"
-    uci set network.awg0.awg_h3="$AWG_H3"
-    uci set network.awg0.awg_h4="$AWG_H4"
 
     uci add network amneziawg_awg0 >/dev/null 2>&1
     uci set network.@amneziawg_awg0[0]=amneziawg_awg0
@@ -145,8 +204,11 @@ setup_awg0() {
 }
 
 setup_awg1() {
-    echo -e "${GREEN}Настройка AmneziaWG 2.0 (awg1) — YouTube/Google...${NC}"
-    read -r -p "Использовать те же Amnezia-параметры (Jc/Jmin/Jmax/S1/S2/H1-H4), что и для awg0? (y/n): " SAME
+    echo -e "${GREEN}Настройка AmneziaWG $AWG_VERSION (awg1) — YouTube/Google...${NC}"
+    read -r -p "Использовать те же Amnezia-параметры (Jc/Jmin/Jmax/S1/S2/H1-H4"
+    [ "$AWG_VERSION" = "2.0" ] && echo -n "/S3/S4/I1-I5"
+    echo "), что и для awg0? (y/n): "
+    read -r SAME
     if [ "$SAME" = "y" ] || [ "$SAME" = "Y" ]; then
         read -r -p "Приватный ключ awg1 [Interface]: " AWG_PRIVATE_KEY
         while true; do
@@ -164,19 +226,8 @@ setup_awg1() {
     fi
 
     uci set network.awg1=interface
-    uci set network.awg1.proto='amneziawg'
-    uci set network.awg1.private_key="$AWG_PRIVATE_KEY"
-    uci set network.awg1.addresses="$AWG_IP"
+    apply_awg_params "awg1"
     uci set network.awg1.listen_port='51821'
-    uci set network.awg1.awg_jc="$AWG_JC"
-    uci set network.awg1.awg_jmin="$AWG_JMIN"
-    uci set network.awg1.awg_jmax="$AWG_JMAX"
-    uci set network.awg1.awg_s1="$AWG_S1"
-    uci set network.awg1.awg_s2="$AWG_S2"
-    uci set network.awg1.awg_h1="$AWG_H1"
-    uci set network.awg1.awg_h2="$AWG_H2"
-    uci set network.awg1.awg_h3="$AWG_H3"
-    uci set network.awg1.awg_h4="$AWG_H4"
 
     uci add network amneziawg_awg1 >/dev/null 2>&1
     uci set network.@amneziawg_awg1[0]=amneziawg_awg1
@@ -401,7 +452,7 @@ echo -e "${GREEN}Перезапуск сети и firewall...${NC}"
 /etc/init.d/firewall restart
 
 echo ""
-echo -e "${GREEN}=== Готово! AmneziaWG 2.0 + раздельная маршрутизация настроены ===${NC}"
+echo -e "${GREEN}=== Готово! AmneziaWG $AWG_VERSION + раздельная маршрутизация настроены ===${NC}"
 echo ""
 echo "Проверка:"
 echo "  nft list set inet fw4 vpn_domains"
