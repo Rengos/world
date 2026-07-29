@@ -40,10 +40,10 @@ fbcdn.net
 akamaihd.net
 scontent.oculuscdn.com
 securecdn.oculus.com
-mmi*.whatsapp.net
-sonar.*.fna.whatsapp.net
-media-*.fna.whatsapp.net
-media-*.cdn.whatsapp.net
+mmi.whatsapp.net
+sonar..fna.whatsapp.net
+media.fna.whatsapp.net
+media.cdn.whatsapp.net
 whatsapp.com
 whatsapp.net
 wa.me
